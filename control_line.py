@@ -40,10 +40,7 @@ class ActionSequence:
 
 tag = None
 p = 2
-err = 0
-# 0- left, 1 - strait, 2- right
-direction = 1
-
+# err = 0
 
 actions = None
 
@@ -65,9 +62,9 @@ def handleActions(msg):
 i = 0
 
 def handleLine(msg):
+        global i, p, tag
 
         if actions != None:
-                global i
                 length = len(actions)
                 s_distance = 0
 
