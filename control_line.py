@@ -39,12 +39,19 @@ class ActionSequence:
 
 
 tag = None
-p = 2
-# err = 0
+p = 2.5
+err = 0
+# 0- left, 1 - strait, 2- right
+direction = 1
+#i = 0
+s_distance = 0
 
 actions = None
 
+
 def handleActions(msg):
+    global i
+    i = 0
     global actions
     actions = msg.actions
     
@@ -59,19 +66,16 @@ def handleActions(msg):
    
 
 # Handle line senso
-i = 0
+
 
 def handleLine(msg):
-        global i, p, tag
 
         if actions != None:
-                length = len(actions)
-                s_distance = 0
-
-                #TODO:get current action sequence number
-                act_seq_num = 1
-                
-                
+            length = len(actions)
+            global i
+            global s_distance
+            global tag 
+            if i < length:
 
                 action = actions[i].action
 
@@ -79,64 +83,78 @@ def handleLine(msg):
                 n_direction = action.name
                 n_tag = action.id
                 n_dist = action.distance
+
+                    #current data
+                lineLeft = msg.line.left if not isnan(msg.line.left) else None
+                lineRight = msg.line.right if not isnan(msg.line.right) else None
                 distance = msg.line.distance if not isnan(msg.line.distance) else None
+                #print('Distance: {} -> {}'.format(msg.line.distance, distance))
 
                 c_distance = distance - s_distance
 
-                if n_tag > 99:  # samo prevozi distanco kot misli
-                            if  c_distance < n_dist:
-                                lineLeft = msg.line.left if not isnan(msg.line.left) else None
-                                lineRight = msg.line.right if not isnan(msg.line.right) else None
-                                distance = msg.line.distance if not isnan(msg.line.distance) else None
-                                print('Distance: {} -> {}'.format(msg.line.distance, distance))
-
-
-                                if n_direction == "left":
-                                    err = lineLeft - 0.37
-                                elif n_direction == "right":
-                                    err = lineRight + 0.55
-                                else:
-                                    err = lineLeft + lineRight
-
-                                v = 0.10
-                                w = err * p
-                                msgCmdVel = Twist()
-                                msgCmdVel.linear.x = v
-                                msgCmdVel.angular.z = w
-                                # Publish velocity commands
-                                pubCmdVel.publish(msgCmdVel)
-                                c_distance = distance - s_distance
+                if lineLeft == None or lineRight == None: #to je zdaj 2x vecja moznost napake
+                    v = 0
+                    w = 0
+                else:
+                    if n_tag > 99:  # samo prevozi distanco kot misli
+                        if c_distance < n_dist:
+                            if n_direction == "left":
+                                err = lineLeft - 0.35
+                                print('Action left: {}'.format(msg.line.left, lineLeft))
+                            elif n_direction == "right":
+                                err = lineRight + 0.55
+                                print('Action Rigt: {}'.format(msg.line.right, lineRight))
                             else:
-                                i = i+1    
+                                err = lineLeft + lineRight
 
-                if n_tag < 99:  #je fizicni tag, caka na scan
-                            if c_distance <  1.1 * n_dist:
-                                lineLeft = msg.line.left if not isnan(msg.line.left) else None
-                                lineRight = msg.line.right if not isnan(msg.line.right) else None
-                                distance = msg.line.distance if not isnan(msg.line.distance) else None
+                            v = 0.08
+                            w = err * p
+                            msgCmdVel = Twist()
+                            msgCmdVel.linear.x = v
+                            msgCmdVel.angular.z = w
+                            # Publish velocity commands
+                            pubCmdVel.publish(msgCmdVel)
 
-                                if n_direction == "left":
-                                    err = lineLeft - 0.37
-                                elif n_direction == "right":
-                                    err = lineRight + 0.55
-                                else:
-                                    err = lineLeft + lineRight
+                        else:
+                            i = i + 1
+                            s_distance = n_dist + s_distance
 
-                                v = 0.10
-                                w = err * p
-                                msgCmdVel = Twist()
-                                msgCmdVel.linear.x = v
-                                msgCmdVel.angular.z = w
-                                # Publish velocity commands
-                                pubCmdVel.publish(msgCmdVel)
-                                c_distance = distance - s_distance
-                                if n_tag == tag: 
-                                    i = i+1
+                    if n_tag < 99:  #je fizicni tag, caka na scan
+                        if c_distance < 1.1 * n_dist:
+                            if n_direction == "left":
+                                err = lineLeft - 0.35
+                            elif n_direction == "right":
+                                err = lineRight + 0.55
                             else:
-                                i = i+1
-                                    
+                                err = lineLeft + lineRight
 
-                s_distance = s_distance + n_dist
+                            v = 0.08
+                            w = err * p
+                            msgCmdVel = Twist()
+                            msgCmdVel.linear.x = v
+                            msgCmdVel.angular.z = w
+                            # Publish velocity commands
+                            pubCmdVel.publish(msgCmdVel)
+
+                            if n_tag == tag:
+                                i = i + 1
+                                s_distance = n_dist + s_distance
+                        else:
+                            i = i + 1
+                            s_distance = n_dist + s_distance
+
+            else:
+                
+                v = 0.0
+                w = 0.0
+                msgCmdVel = Twist()
+                msgCmdVel.linear.x = v
+                msgCmdVel.angular.z = w
+                # Publish velocity commands
+                pubCmdVel.publish(msgCmdVel)
+        else:
+            pass
+
 
 def handleTag(msg):
   global tag
